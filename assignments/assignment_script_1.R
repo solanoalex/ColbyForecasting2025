@@ -19,10 +19,11 @@ long_values
 data_rcp = long_values |> dplyr::filter(name == "SST")
 
 
-
 plot(data_rcp$value)
 
 data_rcp |>
   ggplot(mapping=aes(factor(month, month.abb), value)) +
   geom_point() +
   labs(x="Month", y = "SST (C)", title = "RCP4.5 2055 SST at buoy M01")
+
+

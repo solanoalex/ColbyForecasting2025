@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.6.39">
+<meta name="generator" content="quarto-1.6.40">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -71,7 +71,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-e26003cea8cd680ca0c55a263523d882.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-2be10d9e998f81ff6e49e26833438aa5.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -203,6 +203,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./C05_prediction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Prediction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./S01_observations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">My Observations</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -379,7 +385,7 @@ Geodetic CRS:  WGS 84
 <pre><code>Please point your browser to the following url: </code></pre>
 </div>
 <div class="cell-output cell-output-stderr">
-<pre><code>https://api.obis.org/v3/occurrence/d6e7882e-a850-435d-a546-73adaf625031</code></pre>
+<pre><code>https://api.obis.org/v3/occurrence/ecc45419-d260-465a-ad7e-6000d76782f0</code></pre>
 </div>
 </div>
 <p>Next let’s think about what our minimum requirements might be in oirder to build a model. To answer that we need to think about our environmental covariates in the Brickman data](https://github.com/BigelowLab/ColbyForecasting2025/wiki/Brickman). That data has dimensions of x (longitude), y (latitude) and month. In order to match obseravtions with that data, our observations must be complete in those three variables. Let’s take a look at a summary of the observations which will indicate the number of elements missing in each variable.</p>

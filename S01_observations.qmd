@@ -1,0 +1,235 @@
+---
+title: "Observations"
+format: html
+---
+
+# Obtaining observational data
+
+Follow this [wiki page](https://github.com/BigelowLab/ColbyForecasting2025/wiki/Obis) on obtaining data from [OBIS](https://obis.org/).  Keep in mind that you will probably want a species with sufficient number of records in the northwest Atlantic.  Just what constitutes "sufficient" is probably subject to some debate, but a couple of hundred as a minumum will be helpful for learning.  One thing that might help is to be on alert species that are only congregate in one area such as right along the shoreline or only appear in a few months of the year.  It isn't that those species are not worthy of study, but they may make the learning process harder.
+
+You should feel free to get the data for a couple of different species, if one becomes a headache with our given resources, then you can switch easily to another.
+
+# What we need
+
+We need a dataset that covers the same area and time period that the [Brickman data]() covers.  We need to have some confidence that the observations are of living creatures in their natural habitat. [OBIS](https://obis.org/) serves a curated data set, but that doesn't mean it doesn't have errors and it certainly doesn't mean it is properly vetted for our purposes.  What follows is a tour through your data with a series of pauses to look at different variables in your data set.  At some of these pauses, we may decide to drop some records which will make the data set shrink in size. 
+
+
+# Tour of your data
+
+It is **SO IMPORTANT** to have a really good handle on your data. To get that handle you have to explore it.  There is a branch of data science devoted to data exploration called [Exploratory Data Analysis](https://r4ds.had.co.nz/exploratory-data-analysis.html).  We'll explore your data here, but we assume that you have reviewed and tried your hand with the examples in the wiki for [tabular data](https://github.com/BigelowLab/ColbyForecasting2025/wiki/tables), [observations](https://github.com/BigelowLab/ColbyForecasting2025/wiki/Obis), the [coastlines](https://github.com/BigelowLab/ColbyForecasting2025/wiki/Coastlines) and the [Brickman data](https://github.com/BigelowLab/ColbyForecasting2025/wiki/Brickman).  Even if you have walked through these tutorials you may find yourself stumped and stymied.  That's all part of the learning process - just keep moving, inquiring and trying.
+
+
+# Setup
+
+As always, we start by running our setup function. Start RStudio/R, and relaod your project with the menu `File > Recent Projects`. Then source `setup.R`.  We'll also assign a new variable with our species name - we do that so it's easy to substitute in another species if needed.  We make it ALL CAPS so that it reminds us that it is more like a constant than a variable.
+
+```{r source_setup, warning = FALSE}
+source("setup.R")
+SPECIES = "Mola mola"
+```
+
+# Observations
+
+Next is to read in the observations you have already downloaded for that species.
+
+```{r read_obs}
+obs = read_obis(SPECIES)
+obs
+```
+
+The print out of the table only shows the first 10 rows (so your screen doesn't get filled up), and it tells you how many records you have.  A simple way to keep track of the number of records is to use the `dim()` functions which returns the number of rows and number of columns. I'm going to save the outout so we can compare after all of the filtering.
+
+```{r dim}
+dim_start = dim(obs)
+dim_start
+```
+
+## basisOfRecord
+
+Next we should examine the `basisOfRecord` variable to get an understanding of how these observations were made.
+
+```{r basisOfRecord}
+obs |> count(basisOfRecord)
+```
+
+If you are using a different species you may have different values for `basisOfRecord`.  Let's take a closer look at the complete records for one from each group.  
+
+```{r browse}
+human = obs |>
+  filter(basisOfRecord == "HumanObservation") |>
+  slice(1) |>
+  browse_obis()
+
+preserved = obs |>
+  filter(basisOfRecord == "PreservedSpecimen") |>
+  slice(1) |>
+  browse_obis()
+
+checklist = obs |>
+  filter(basisOfRecord == "NomenclaturalChecklist") |>
+  slice(1) |>
+  browse_obis()
+
+occurrence = obs |>
+  filter(basisOfRecord == "Occurrence") |>
+  slice(1) |>
+  browse_obis()
+```
+
+Next let's think about what our minimum requirements might be in oirder to build a model. To answer that we need to think about our environmental covariates in the Brickman data](https://github.com/BigelowLab/ColbyForecasting2025/wiki/Brickman). That data has dimensions of x (longitude), y (latitude) and month.  In order to match obseravtions with that data, our observations must be complete in those three variables.  Let's take a look at a summary of the observations which will indicate the number of elements missing in each variable.
+
+```{r summary_obs}
+summary(obs)
+```
+
+## `eventDate`
+
+For *Mola mola* there are some rows where `eventDate` is `NA`.  We need to filter those. The filter function looks for a vector of TRUE/FALSE values - one for each row.  In our case, we test the `eventDate` column to see if it is `NA`, but then we reverse the TRUE/FALSE logical with the preceding `!` (pronounded "bang!"). This we retain only the rows where `eventDate is not `NA`, and then we print the summary again.
+
+```{r obs_filter_date}
+obs = obs |>
+  filter(!is.na(eventDate))
+summary(obs)
+```
+
+## `individualCount`
+
+That's better, but we still have  315 `NA` values for `individualCount`.  Let's look at at least one record of those in detail; filter out one, and browse it.
+
+```{r obs_indcount}
+obs |>
+  filter(is.na(individualCount)) |>
+  slice(1) |>
+  browse_obis()
+```
+
+Eeek!  It's a carcas that washed up on shore!  We checked a number of others, and they are all carcases.  Is that a presence?  Is that what we model are modeling?  If not then we should filer those out.
+
+```{r obs_filter_countless_dead}
+obs = obs |>
+  filter(!is.na(individualCount))
+summary(obs)
+```
+
+Well now one has to wonder about a single observation of 25 animals. Let's check that out.
+
+```{r obs_indcount_25}
+obs |>
+  filter(individualCount == 25) |>
+  browse_obis()
+```
+
+OK, that seems legitmate. And it is possible, *Mola mola* can congregate for feeding, mating and possibly for karaoke parties.
+
+## `year`
+
+We know that the "current" climate scenario for the Brickman model data define "current" as the 1982-2013 window.  It's just an average, and if you have values from 1970 to the current year, you probably are safe in including them.  But do your observations fall into those years?  Let's make a plot of the counts per year, with dashed lines shown the Brickman "current" cliamtology period.
+
+```{r plot_year}
+ggplot(data = obs,
+       mapping = aes(x = year)) + 
+  geom_bar() + 
+  geom_vline(xintercept = c(1982, 2013), linetype = "dashed") + 
+  labs(title = "Counts per year")
+```
+For this species, it seem like it is only the record from 1932 that might be a stretch, so let's filter that out by rejecting records before 1970. This time, instead of asking for a sumamry, we'll print the dimensions (rows, columns) of the table.
+
+```{r filter_earlier}
+obs = obs |>
+  filter(year >= 1970)
+dim(obs)
+```
+
+That's still a lot of records.  Now let's check out the distribution across the months of the year.
+
+## `month` 
+
+We will be making models and predictions for each month of the for the 4 future projection climates. Species and observers do show some seasonality, but it that seasonality so extreme that it might be impossible to model some months because of sparse data?  Let's make a plot of the counts per month.
+
+```{r plot_month}
+ggplot(data = obs,
+       mapping = aes(x = month)) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+```
+
+Oh, rats!  By default `ggplot` plots in alpha-numeric order, which scrambles our month order.  To fix that we have to convert the `month` in a factor type while specifying the order of the factors, and we'll use the `mutate()` function to help us.
+
+```{r month_ordered}
+obs = obs |>
+  mutate(month = factor(month, levels = month.abb))
+
+ggplot(data = obs,
+       mapping = aes(x = month)) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+```
+
+That's better! So, it may be the for *Mola mola* we might not be able to successfully model in the cold winter months. That's good to keep in mind.
+
+## `geometry` 
+
+Last, but certainly not least, we should consider the possibility that some observations might be on shore.  It happens!  We already know that some records included fish that were washed up on shore.  It's possible someone mis-keyed the longitude or latitude when entering the vaklues into the database.  It's alos possible that some observations fall just outside the areas where the Brickman data has values.  To look for these points, we'll load the Brickman mask (defines land vs water. Well, really it defines data vs no-data), and use that for further filtering.
+
+We need to load the Brickman database, and then filter it for the static variable called "mask".
+
+```{r mask}
+db = brickman_database() |>
+  filter(scenario == "STATIC", var == "mask")
+mask = read_brickman(db, add_depth = FALSE)
+mask
+```
+
+Let's see what our mask looks like with the observations drizzled on top. Because the mask only has values of 1 (data) or `NA` (no-data).  You'll note that we only want to plot the locations of the observations, so we strip `obs` of everyhting except its geometery.
+
+```{r plot_mask}
+plot(mask, breaks = "equal", axes = TRUE, reset = FALSE)
+plot(st_geometry(obs), pch = ".", add = TRUE)
+```
+Maybe with proper with squinting we can see some that faal into no-data areas.  The sure-fire way to tell is to extract the mask values at the point locations.
+
+```{r mask_extract}
+hitOrMiss = extract_brickman(mask, obs)
+hitOrMiss
+```
+
+OK, let's tally the "value" variable.
+
+```{r tally_masked}
+count(hitOrMiss, value)
+```
+Ooooo, 33 records in `obs` don't line up with values in the mask (or in any Brickman data).  We should filter those out; we'll do so with a `filter()`. Note that we a "reaching" into the `hitOrMiss` table to access the `value` column when we use this `hitOrMiss$value`.  Let's figure out how many records we have dropped with all of this filtering.
+
+```{r filter_the_misses}
+obs = obs |>
+  filter(!is.na(hitOrMiss$value))
+dim_end = dim(obs)
+
+dropped_records = dim_start[1] - dim_end[1]
+dropped_records
+```
+
+So, we dropped `{r} dropped_records` records which is about `{r} sprintf("%0.1f%%", dropped_records/dim_start[1] * 100)` of the raw OBIS data.  Is it worth all that to drop just 4% of the data?  **Yes!**  Models are like all things computer... if you put garbage in you should expect to get garbage back out.
+
+# Recap
+
+We have explored a data set, in particular for *Mola mola*; your species may present you with unique challenges. Our goal is to winnow the original data set down to just the most reliable observations for modeling.  
+
+# Coding Assignment
+
+We went through many steps to filter out records that won't help use model.  We'll need that filtered data many-many-many times in the days ahead.  Wouldn't it be nice if we could sweep all of those filtering steps into a single function, call it `read_observations()`, that simple took care of it all for us?  Yes - that would be really nice!
+
+Open the "read_observations.R" file you'll find in the "functions" directory. We have started it for you. Edit the function so that it appropriately filters your species data set by adding optional arguments (like `minimum_year` has been added).  And then adding the code steps needed to implement that filter.
+
+Not every filter needs user input.  For instance, `eventDate` can't be `NA`, and all points must fall within the area covered by the Brickman data. So you can automatically add those filters without any user options. 
+
+On the other hand, filtering by `basisOfRecord` or `individualCount` might need more flexibility, especially if you might switch to other species.  
+
+Speaking of which, we provided `scientificname` with a default value - we chose "Mola mola" because we are a bit lazy.  If you are feeling lazy, you can change the default to your own species.
+
+As you build your function, pause every so often and run the following to test things out.
+
+```
+source("setup.R")
+obs = read_observations()
+```

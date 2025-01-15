@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.6.39">
+<meta name="generator" content="quarto-1.6.40">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -71,7 +71,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-e26003cea8cd680ca0c55a263523d882.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-549806ee2085284f45b00abea8c6df48.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="site_libs/bootstrap/bootstrap-2be10d9e998f81ff6e49e26833438aa5.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
@@ -203,6 +203,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container"> 
   <a href="./C05_prediction.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Prediction</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./S01_observations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">My Observations</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -412,12 +418,12 @@ Geodetic CRS:  WGS 84
 <pre><code>Simple feature collection with 2 features and 2 fields
 Geometry type: MULTIPOINT
 Dimension:     XY
-Bounding box:  xmin: -74.5867 ymin: 38.868 xmax: -65.02004 ymax: 45.1333
+Bounding box:  xmin: -74.5867 ymin: 38.8678 xmax: -65.02004 ymax: 45.1333
 Geodetic CRS:  WGS 84
 # A tibble: 2 × 3
   class          n                                                      geometry
 * &lt;fct&gt;      &lt;int&gt;                                              &lt;MULTIPOINT [°]&gt;
-1 presence    1204 ((-65.067 42.65), (-65.05 42.583), (-65.067 42.617), (-65.16…
+1 presence    1204 ((-65.067 42.65), (-65.05 42.6), (-65.067 42.617), (-65.16 4…
 2 background  1204 ((-65.1023 42.66383), (-65.02004 42.58157), (-65.1023 42.581…</code></pre>
 </div>
 </div>
@@ -612,30 +618,30 @@ Note
 <span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>files <span class="ot">=</span> <span class="fu">list.files</span>(path, <span class="at">full.names =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>files</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code> [1] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Apr-conservative_input.gpkg"
- [2] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Apr-greedy_input.gpkg"      
- [3] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Aug-conservative_input.gpkg"
- [4] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Aug-greedy_input.gpkg"      
- [5] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Dec-conservative_input.gpkg"
- [6] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Dec-greedy_input.gpkg"      
- [7] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Feb-conservative_input.gpkg"
- [8] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Feb-greedy_input.gpkg"      
- [9] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Jan-conservative_input.gpkg"
-[10] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Jan-greedy_input.gpkg"      
-[11] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Jul-conservative_input.gpkg"
-[12] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Jul-greedy_input.gpkg"      
-[13] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Jun-conservative_input.gpkg"
-[14] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Jun-greedy_input.gpkg"      
-[15] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Mar-conservative_input.gpkg"
-[16] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Mar-greedy_input.gpkg"      
-[17] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-May-conservative_input.gpkg"
-[18] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-May-greedy_input.gpkg"      
-[19] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Nov-conservative_input.gpkg"
-[20] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Nov-greedy_input.gpkg"      
-[21] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Oct-conservative_input.gpkg"
-[22] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Oct-greedy_input.gpkg"      
-[23] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Sep-conservative_input.gpkg"
-[24] "/Users/ben/Dropbox/code/projects/ColbyForecasting_data/2025/ben/model_input/Mola_mola-Sep-greedy_input.gpkg"      </code></pre>
+<pre><code> [1] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Apr-conservative_input.gpkg"
+ [2] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Apr-greedy_input.gpkg"      
+ [3] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Aug-conservative_input.gpkg"
+ [4] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Aug-greedy_input.gpkg"      
+ [5] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Dec-conservative_input.gpkg"
+ [6] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Dec-greedy_input.gpkg"      
+ [7] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Feb-conservative_input.gpkg"
+ [8] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Feb-greedy_input.gpkg"      
+ [9] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Jan-conservative_input.gpkg"
+[10] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Jan-greedy_input.gpkg"      
+[11] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Jul-conservative_input.gpkg"
+[12] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Jul-greedy_input.gpkg"      
+[13] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Jun-conservative_input.gpkg"
+[14] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Jun-greedy_input.gpkg"      
+[15] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Mar-conservative_input.gpkg"
+[16] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Mar-greedy_input.gpkg"      
+[17] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-May-conservative_input.gpkg"
+[18] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-May-greedy_input.gpkg"      
+[19] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Nov-conservative_input.gpkg"
+[20] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Nov-greedy_input.gpkg"      
+[21] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Oct-conservative_input.gpkg"
+[22] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Oct-greedy_input.gpkg"      
+[23] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Sep-conservative_input.gpkg"
+[24] "/Users/alexsolano/Documents/ColbyForecasting_data/2025/alexsolano/model_input/Mola_mola-Sep-greedy_input.gpkg"      </code></pre>
 </div>
 </div>
 </section>
