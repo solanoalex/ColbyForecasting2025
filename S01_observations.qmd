@@ -235,5 +235,55 @@ obs = read_observations()
 ```
 
 ```{r}
+shrimp_na = read_observations(individual_na = F)
+shrimp = read_observations()
+
+summary(shrimp_na)
+summary(shrimp)
+```
+
+
+```{r}
+ggplot(data = shrimp_na,
+       mapping = aes(x = factor(month, month.abb))) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+
+ggplot(data = shrimp,
+     mapping = aes(x = factor(month, month.abb))) + 
+  geom_bar() + 
+  labs(title = "Counts per month")
+```
+
+
+```{r}
+db = brickman_database() |>
+  filter(scenario == "STATIC", var == "mask")
+mask = read_brickman(db, add_depth = FALSE)
+
+plot(mask, breaks = "equal", axes = TRUE, reset = FALSE)
+plot(st_geometry(shrimp_na), pch = ".", add = TRUE)
+
+plot(mask, breaks = "equal", axes = TRUE, reset = FALSE)
+plot(st_geometry(shrimp), pch = ".", add = TRUE)
+```
+
+```{r}
+coast = read_coastline()
+ggplot(data = shrimp_na) +       # create a plot object
+  geom_sf(alpha = 0.1,      # add the points with some tweaking of appearance
+          size = 0.7) +  
+  geom_sf(data = coast,     # add the coastline
+          col = "orange")
+
+coast = read_coastline()
+ggplot(data = shrimp) +       # create a plot object
+  geom_sf(alpha = 0.1,      # add the points with some tweaking of appearance
+          size = 0.7) +  
+  geom_sf(data = coast,     # add the coastline
+          col = "orange")
 
 ```
+
+
+

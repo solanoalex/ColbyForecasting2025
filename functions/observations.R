@@ -1,5 +1,5 @@
 
-read_observations = function(scientificname = "Mola mola",
+read_observations = function(scientificname = "Pandalus borealis",
                              minimum_year = 1970,
                              individual_na = TRUE,
                              ...){
@@ -33,7 +33,7 @@ read_observations = function(scientificname = "Mola mola",
   # by default, we filter out NA from eventDate
   x = x |>
       filter(!is.na(eventDate))
-  
+
   # by default, we filter out points outside the area
   db = brickman_database() |>
     filter(scenario == "STATIC", var == "mask")
