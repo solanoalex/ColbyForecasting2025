@@ -1,0 +1,301 @@
+---
+title: "Background"
+format: html
+---
+
+Traditional ecological surveys are systematic, for a given species survey data sets tell us where the species is found and where it is absent.  Using an observational data (like [OBIS](https://obis.org)) set we only know where the species is found, which leaves us guessing about where they might not be found. This difference is what distinguishes a *presence-abscence* data set from a *presence-only* data set, and this difference guides the modeling process.
+
+When we model, we are trying to define the environs where we should expect to find a species as well as the environs we would not expect to find a species. We have in hand the locations of observations, and we can extract the environmental data at those locations.  But to characterize the less suitable environments we are going to have to sample what is called "background". We want these background samples to roughly match the regional preferences of the observations; that is we want to avoid having observations that are mostly over Georges Bank while our background samples are primarily around the Bay of Fundy.
+
+# Setup
+
+As always, we start by running our setup function. Start RStudio/R, and relaod your project with the menu `File > Recent Projects`.
+
+```{r setup}
+source("setup.R")
+```
+
+We also will need the Brickman mask and the observation data. Note that we are making a model for each month.  Given that most *Mola mola* observations are in the summer, we filter our data to just one summer month, August.
+
+```{r load_obs_mask}
+coast = read_coastline()
+obs = read_observations(scientificname = "Pandalus borealis", individual_na = F) |>
+  filter(month == "Aug")
+db = brickman_database() |>
+  filter(scenario == "STATIC", var == "mask")
+mask = read_brickman(db, add_depth = FALSE)
+```
+
+We have two approaches to what happens next.  The first is the greedy approach that say, gather together lots of observations and background points.  Lot and lots!  The second approach is much more conseravtive as it considers the value (or not!) of having replicate measurements at locations that share the same array cell.  
+
+# The greedy approach - lots and lots of data
+
+The greedy approach attempts to collect as many background and presence points as possible - with no vetting.  The more the better!  
+
+## Sample background 
+
+When we sample the background, we are creating the input for the model if we request that the observations (presences) are joined with the background.
+
+Next we sample the background as guided by the density map.  We'll ask for 2x as many presences, but it is just a request. We also request that no background point be further than 30km (30000m) from it's closest presence point. 
+
+```{r sample_background_greedy}
+greedy_input = sample_background(obs, mask, 
+                              n = 2 * nrow(obs),
+                              class_label = "background",
+                              method = c("dist_max", 30000),
+                              return_pres = TRUE)
+greedy_input
+```
+You may encounter a warning message that says, "There are fewer available cells for raster...". This is useful information, there simply weren't a lot of non-NA cells to sample from.  Let's plot this.
+
+```{r plot_greedy_input}
+plot(greedy_input['class'], 
+     axes = TRUE,  
+     pch = ".", 
+     extent = mask, 
+     main = "August greedy class distribution",
+     reset = FALSE)
+plot(coast, col = "orange", add = TRUE)
+```
+
+Hmmm, let's tally the class labels.
+
+```{r tally_greedy_input}
+count(greedy_input, class)
+```
+Well, that's imbalanced with a different number presences than background points. But, on the bright side, the background points are definitely in the region of observations.
+
+# The conservative approach - data thinning
+
+The conservative approach says that the environmental covariates (that's the Brickman data), or more specifically the resolution of the envirnomental covariates, should dictate the sampling.  The core thought here is that it doesn't produce more or better information to have replicate measurements of either presences or  
+
+## Thin by cell
+
+In this approach we eliminate (thin) presences so that we have no more than one per covariate array cell. 
+
+```{r thin_by_cell}
+dim_before = dim(obs)
+cat("number of rows before cell thinning:", dim_before[1], "\n")
+thinned_obs = thin_by_cell(obs, mask)
+dim_after = dim(thinned_obs)
+cat("number of rows after cell thinning:", dim_after[1], "\n")
+```
+
+So, that dropped quite a few!  
+
+## Make a weighted sampling map
+
+There is a technique we can use to to make a weighted sampling map.  Simply counting the number of original observations per cell will indicate where we are most likely to oberve `Mola mola`.  
+
+```{r sample_weight}
+samp_weight = rasterize_point_density(obs, mask)
+# plot(samp_weight, axes = TRUE, breaks = "equal", col = rev(hcl.colors(10)), reset = FALSE)
+plot(samp_weight, axes = TRUE, breaks = "equal", reset = FALSE)
+plot(coast, col = "orange", lwd = 2, add = TRUE)
+```
+
+Now let's take a look at the background, but this time we'll try to match the count of presences.
+
+```{r sample_background_conservative}
+conservative_input = sample_background(thinned_obs, samp_weight, 
+                              n = 2 * nrow(thinned_obs),
+                              class_label = "background",
+                              method = "bias",
+                              return_pres = TRUE)
+count(conservative_input, class)
+```
+Whoa - that's many fewer background points.
+
+```{r plot_conservative_input}
+plot(conservative_input['class'], 
+     axes = TRUE,  
+     pch = ".", 
+     extent = mask, 
+     main = "August conservative class distribution",
+     reset = FALSE)
+plot(coast, col = "orange", add = TRUE)
+```
+It appears that background points are essentially shadowing the thinned presence points.
+
+# Greedy or Conservative?
+
+It's not possible to know which is correct at this point; we can only know after we produce models (and maybe predictions.)  So for now, perhaps we keep both.
+
+# Model input per month
+
+So, how do we go about producing a madel input data set for each month?  For that we need to iterate; if iteration is new to you please be sure to check out our [iteration tutorial](https://bigelowlab.github.io/handytandy/iterations.html).  We are going to make a small function that handles creating the two types of input (greedy and conservative) for each month.  We'll use a *for-loop* to iterate over the months of the year: Jan, Feb, ..., Nov, Dec.  
+
+:::{.callout-note}
+Heads up!  Your assignment will be to use this function in an `lapply()` function that will iterate over the months for you in lieu of a *for-loop*.  More on that later...
+:::
+
+## A function we can reuse
+
+Here we make a function that needs at least three arguments: the complete set of observations, the mask used for sampling (and possibly thinning) and the month to filter the observations.  The pseudo-code might look like this...
+
+```
+for a given month
+  filter the obs for that month
+  make the greedy model input by sampling the background
+    save the greedy model input
+  thin the obs
+  make the conservative model input by sampling background
+    save the conservative model input
+  return a list the greedy and conservative model inputs
+```
+
+Phew! That's a lot of steps.  To manually run those steps 12 times would be tedious, so we roll that into a function that we can reuse 12 times instead.  
+
+This function will have a name, `make_model_input_by_month`.  It's a long name, but it makes it obvious what it does. First we start with the documentation.  
+
+```{r make_model_input_by_month}
+#' Builds greedy and conservative model input data sets for a given month
+#' 
+#' @param mon chr the month abbreviation for the month of interest ("Jan" by default)
+#' @param obs table, the complete observation data set
+#' @param raster stars, the object that defines the sampling space, usually a mask
+#' @param species chr, the name of the species prepended to the name of the output files.
+#'   (By default "Mola mola" which gets converted to "Mola_mola")
+#' @param path the output data path to store this data (be default "model_input")
+#' @param min_obs num this sets a threshold below which we wont try to make a model. (Default is 3)
+#' @return a named two element list of greedy and conservative model inputs - they are tables
+make_model_input_by_month  = function(mon = "Jan",
+                                      obs = read_observations("Mola mola"),
+                                      raster = NULL,
+                                      species = "Mola mola",
+                                      path = data_path("model_input"),
+                                      min_obs = 3){
+  # the user *must* provide a raster
+  if (is.null(raster)) stop("please provide a raster")
+  # filter the obs
+  obs = obs |>
+    filter(month == mon[1])
+  
+  # check that we have at least some records, if not enough then alert the user
+  # and return NULL
+  if (nrow(obs) < min_obs){
+    warning("sorry, this month has too few records: ", mon)
+    return(NULL)
+  }
+  
+  # make sure the output path exists, if not, make it
+  make_path(path)
+  
+  
+  # make the greedy model input by sampling the background
+  greedy_input = sample_background(obs, raster,
+                                   n = 2 * nrow(obs),
+                                   class_label = "background",
+                                   method = c("dist_max", 30000),
+                                   return_pres = TRUE)
+  # save the greedy data
+  filename = sprintf("%s-%s-greedy_input.gpkg", 
+                     gsub(" ", "_", species),
+                     mon)
+  write_sf(greedy_input, file.path(path, filename))
+  
+  # thin the obs
+  thinned_obs = thin_by_cell(obs, raster)
+  
+  # sampling weight
+  samp_weight = rasterize_point_density(obs, raster)
+  
+  # make the conservative model
+  conservative_input = sample_background(thinned_obs, samp_weight,
+                                   n = 2 * nrow(thinned_obs),
+                                   class_label = "background",
+                                   method = "bias",
+                                   return_pres = TRUE)
+  
+  # save the conservative data
+  filename = sprintf("%s-%s-conservative_input.gpkg", 
+                     gsub(" ", "_", species),
+                     mon)
+  write_sf(conservative_input, file.path(path,filename))
+  
+  # make a list
+  r = list(greedy = greedy_input, conservative = conservative_input)
+  
+  # return, but disable automatic printing
+  invisible(r)
+}
+```
+
+# Reusing the function in a loop
+More phew!  But that is it!  Now we use a for loop to run through the months, calling our function each time. Happily, the built-in variable `month.abb` has all of the month names in order.
+
+```{r for_loop}
+for (this_month in month.abb){
+  result = make_model_input_by_month(this_month,
+                                     obs = read_observations(scientificname = "Pandalus borealis",
+                                                             individual_na = F),
+                                     raster = mask,
+                                     species = "Pandalus borealis",
+                                     path = data_path("model_input"),
+                                     min_obs = 3)
+}
+```
+# Listing the output files
+
+You can always look into you output directory to see if the files we made, but even better might be to use the computer to list them for you.  If your species is found in sufficient numbers year round, you'll have 24 files:  12 months x 2 approaches (greedy vs conservative)
+
+```{r listing_files}
+path = data_path("model_input")
+files = list.files(path, full.names = TRUE)
+files
+```
+
+# Reading the files
+
+We know that each file should have a table with spatial information included. Let's read one back and plot it.
+
+```{r read_file}
+x = read_sf(files[1])
+filename = basename(files[1])
+plot(x['class'], 
+     axes = TRUE,  
+     pch = "+", 
+     extent = mask, 
+     main = filename,
+     reset = FALSE)
+plot(coast, col = "orange", add = TRUE)
+```
+
+
+# Recap
+
+We have prepared what we call "model inputs", in particular for *Mola mola*, by selecting background points using two different approaches: greedy and conservative.  There are lots of other approaches, too, but for the sake of learning we'll settle on just these two.  We developed a function that will produce our model inputs for a given month, and saved them to disk.  Then we read at least one back and showed that we can restore these from disk.
+
+# Coding Assignment
+
+Use the [iterations tutorial](https://bigelowlab.github.io/handytandy/iterations.html) to apply your `make_model_input_by_month()` for each month.  You'll know you have done it correctly if your result is a list filled with lists of greedy-conservative tables, **and** your `model_inputs` directory holds at least 24 files (12 months x 2 sampling schemes).
+
+
+# Challenge
+And here we add one challenge...
+
+Create a function to read the correct model input when given the species, month and approach.
+
+Use the menu option `File > New File > R Script` to create a blank file. Save the file (even though it is empty) in the "functions" directory as "model_input.R".  Use this file to build a function (or set of functions) that uses this set of arguments.  Below is a template to help you get started.
+
+
+```{r read_model_input}
+#' Reads a model input file given species, month, approach and path
+#' 
+#' @param scientificname chr, the species name
+#' @param mon chr month abbreviation
+#' @param approach chr, one of "greedy" or "conservative"
+#' @param path chr the path to the data directory
+read_model_input = function(scientificname = "Mola mola",
+                            mon = "Jan",
+                            approach = "greedy",
+                            path = data_path("model_input")){
+    # your part goes in here
+}
+```
+
+```{r}
+read_model_input(scientificname = "Pandalus borealis",
+                 mon = "Nov",
+                 approach = "conservative")
+```
