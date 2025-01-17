@@ -22,5 +22,10 @@ read_observations = function(scientificname = "Mola mola",
       filter(year >= minimum_year)
   }
   
+  # by default, we filter out NA from eventDate
+  x = x |>
+      filter(!is.na(eventDate))
   return(x)
+  
+  # by default, we filter out points outside the area
 }
