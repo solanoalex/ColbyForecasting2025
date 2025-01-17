@@ -233,3 +233,7 @@ As you build your function, pause every so often and run the following to test t
 source("setup.R")
 obs = read_observations()
 ```
+
+```{r}
+
+```

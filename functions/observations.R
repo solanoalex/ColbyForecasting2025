@@ -10,7 +10,6 @@ read_observations = function(scientificname = "Mola mola",
   #' @param minimum_year num, the earliest year of observation to accept or 
   #'   set to NULL to skip
   #' @param individual_na bool, filter out NA counts if True
-  #' @param ... other arguments passed to `read_obis()`
   #' @return a filtered table of observations
   
   # Happy coding!
