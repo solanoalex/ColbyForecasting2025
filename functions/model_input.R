@@ -13,10 +13,17 @@ read_model_input = function(scientificname = "Mola mola",
   
   # your part goes in here
   filename = sprintf("%s-%s-%s_input.gpkg", 
-                     gsub(" ", "_", scientificname),
+                     gsub(" ", "_", scientificname, fixed = TRUE),
                      mon, approach)
   
-  x = read_sf(file.path(path, filename))
+  fname = file.path(path[1], filename[1])
+  
+  if(!file.exists(fname)){
+    message("file not found:", filename)
+    return(NULL)
+  }
+  
+  x = read_sf(fname)
     
   return(x)
 }

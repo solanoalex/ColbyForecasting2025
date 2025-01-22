@@ -1,0 +1,353 @@
+---
+title: "Models"
+format: html
+---
+
+> All models are wrong, but some are useful.
+>   ~ [George Box](https://en.wikipedia.org/wiki/George_E._P._Box)
+
+Modeling starts with a collection of observations (presence and background for us!) and ends up with a collection of coeefficients that can be used with one or more formulas to make a predicition for the past, the present or the future.  We are using modeling specifically to make habitat suitability maps for select species under two climate scenarios (RCP45 and RCP85) at two different times (2055 and 2075) in the future.
+
+We can choose from a number of different models: [random forest "rf"](https://en.wikipedia.org/wiki/Random_forest), [maximum entropy "maxent" or "maxnet"](https://en.wikipedia.org/wiki/Principle_of_maximum_entropy), [boosted regression trees "brt"](boosted regression trees), [general linear models "glm"](https://en.wikipedia.org/wiki/General_linear_model), etc.  The point of each is to make a mathematical representation of natural occurrences. It is important to consider what those occurences might be - *categorical* like labels? *likelihoods* like probabilities? *continuous* like measurements?  Here are examples of each...
+
++ **Categorical**
+  - two class labels: "present/absence", "red/green", "shell/no shell", "alive/dead"
+  - multi-class labels: "vanilla/chocolate/strawberry", "immature/mature/aged"
+  
++ **Likelihood and Probability**
+  - probability: "50% chance of rain", "80% chance of a fatal fall"
+  - relativity: "low likelihood of encounter", "some likelihood of encounter"
+  
++ **Continuous**
+  - abundance: "48.2 mice per km^2", "10,500 copepods per m^3"
+  - rate: "50 knot winds", "28.2 Svedrups"
+  - measure: "3.2 cm of rain", "12.1 grams of carbon"
+  
+We are modeling with known observations (presences) and a sampling of the background, so we are trying to model a likelihood that a species will be encountered (and reported) relative to the environmental conditions. We are looking for a model that can produce relative likelihood of an encounter that results in a report.
+
+We'll be using a random forest model (rf). We were inspired to follow this route by using this [tidy models tutorial](https://oj713.github.io/tidymodels/index.html) prepared by our colleague [Omi Johnson](https://omi-johnson.netlify.app/).
+
+# Setup 
+
+As always, we start by running our setup function. Start RStudio/R, and reload your project with the menu `File > Recent Projects`. 
+
+```{r setup}
+source("setup.R")
+```
+
+# Load data - choose a month and sampling approach
+
+Let's load what we need to build a model for August using the greedy sampling technique. We'll also need the model configuration (which is "g_Aug"). And we'll need the covariate data.  Notice that we select the covariates that are included in our configuration.
+
+```{r load_data}
+model_input = read_model_input(scientificname = "Pandalus borealis", 
+                               approach = "greedy", 
+                               mon = "Aug")
+cfg = read_configuration(version = "g_Aug")
+db = brickman_database()
+covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon"))|>
+  select(all_of(cfg$keep_vars))
+```
+
+Of course we need covariates for August only, for this we can use a function we prepared earlier, `prep_model_data()`.  Note the we specifically ask for a plain table which means we are dropping the spatial information for now.  Also, we select only the variables required in the configuration, plus the `class` label.
+
+```{r august_data}
+all_data = prep_model_data(model_input, 
+                           month = "Aug",
+                           covars = covars, 
+                           form = "table") |>
+  select(all_of(c("class", cfg$keep_vars)))
+all_data
+```
+
+# Split the data set into testing and training data sets
+
+We will split out a random sample of our dataset to a larger set used for training the model, and a smaller set we withhold to use for later testing of the model.  Since we have labeled data ("presence" and "background") we want to be sure we sample these in proportion, for that we'll indicate that the data are stratified (into just two groups). Let's first determine what the proportion is before splitting.
+
+```{r prop_variables}
+# A little function to compute the ratio of presences to background
+# @param x table with a "class" column
+# @return numeric ratio presences/background
+get_ratio = function(x){
+  counts = count(x, class)
+  np = filter(counts, class == "presence") |> pull(n)
+  nb = filter(counts, class == "background") |> pull(n)
+  return(np/nb)
+}
+
+cat("ratio of presence/background in full data set:", get_ratio(all_data), "\n")
+```
+
+Now let's make the split with the training set comprising 75% of `all_data`. Note that we specifically identify `class` as the `strata` (or grouping) variable.
+
+```{r split}
+split_data = initial_split(all_data, 
+                           prop = 3/4,
+                           strata = class)
+split_data
+```
+It prints the counts of the training data, the testing data and the entire data set. We can extract the training data and testing data using the `training()` and `testing()` functions.  Let's check the ratios for those..
+
+```{r check_strata}
+cat("ratio of presence/background in training data:", 
+    training(split_data) |> get_ratio(), "\n")
+
+cat("ratio of presence/background in testing data:", 
+    testing(split_data) |> get_ratio(), "\n")
+```
+
+OK! The samples observed the original proportion of presence/background.
+
+> Note!  Did you notice that the function is called `initial_split()`, which implies a subsequent split - what do you suppose that is about? 
+
+# Create a workflow
+
+[workflows](https://workflows.tidymodels.org/) are containers for storing the data pre-processing steps and model specifications.  Not too long ago it was quite a challenge to to keep track of all the bits and pieces required to make good forecasts. The advent of `workflows` greatly simplifies the process.  A `workflow` will house two important items for us: a recipe and a model.  For now, we'll create an empty workflow, then add to it as needed.  At the very end, we'll save the workflow.
+
+```{r make_workflow}
+wflow = workflow()
+```
+
+That's it!
+
+# Build a recipe
+
+The first thing we'll add tot he workflow is a `recipe.` A `recipe` is a blueprint that guides the data handling and modeling process.
+
+A recipe at a bare minimum needs to know two things: what data it has to work with and what is the relationship among the variables within the data.  The latter is expressed as a formula, very similar to how we specify the formula of a line with `y = mx + b` or a parabola `y = ax^2 + bx + c`.
+
+:::{.callout-note}
+
+We often think of formulas as left-hand side (LHS) and right-hand side (RHS) equalities. And usually, the LHS is the outcome while the RHS is about the inputs. For our modeling, the outcome is to predict the across the entire domain.  We can generalize the idea with the "is a function of" operator `~` (the tilde). For the classic formula for a line it like this... `y ~ x` and a parabola is also `y ~ x`.  
+
+Consider a situation where we have reduced all of the suitable variables to `Sbtm`, `Tbtm`, `MLD` and`Xbtm`, which we have in a table along with a `class` variable.
+In our case we have the outcome is an prediction of `class` it is a function of variables like `Sbtm`, `Tbtm`, `MLD`, `Xbtm`, *etc.*  This formula would look like `y ~ Sbtm + Tbtm + MLD + Xbtm`.  Unlike the specific equation for a line or parabola, we don't pretend to know what coefficients, powers and that sort of stuff looks like.  We are just saying that `class` is a function of all of those variables (somehow).  
+
+In the case here where the outcome (`class`) is a function of all other variables in the table, we have a nice short hand.  `class ~ .` where the dot means "every other variable".
+:::
+
+First we fish out of our split data the training data, and then drop the spatial information.
+
+```{r tr_data}
+tr_data = training(split_data)
+tr_data
+```
+
+Now we make the recipe. Note that no computation takes place.
+
+::: {.callout-note}
+Technically, `recipe()` only needs a small subset of the data set to establish the names and data types of the predictor and outcome variables. Just one row would suffice. That underscores that a recipe is simply building a template.  
+:::
+
+```{r recipe}
+rec = recipe(class ~ ., data = slice(tr_data,1))
+rec
+```
+This print out provides a very high level summary - all of the details are glossed over. To get a more detailed summary use the `summary()` function.
+
+```{r recipe_summary}
+summary(rec)
+```
+
+Each variable in the input is assigned a role: "outcome" or "predictor".  The latter are the variables used in the creation of the model. There are other types of roles, (see `?recipe`) including "case_weight" and "ID", and others can be defined as needed. Some are used in building the model, others are simply ride along and don't change the model outcome.
+
+## Modifying the recipe with steps
+
+Steps are cumulative modifications, and that means the order in which they are added matters.  These steps comprise the bulk of pre-processing steps.
+
+Some modifications are applied row-by-row.  For example, rows of the input modeling data that have one or more missing values (NAs) can be problematic and they should be removed.
+
+Other modifications are to manipulate entire columns. Sometimes the recipes requires subsequent steps *before* the modeling begins in earnest. For example we know from experience that it is often useful to log scale (base 10) depth when working with biological models. If `depth` and `Xbtm` have made it this far, you'll note that each range over 4 or more orders of magnitude. That's not a problem by itself, but it can introduce a bias toward larger values whenever the mean is computed. So, we'll add a step for log scaling these, but only if `depth` and `Xbtm` have made it this far (this may vary by species.)
+
+```{r step_log}
+rec = rec |> 
+  step_naomit()
+if ("depth" %in% cfg$keep_vars){
+  rec = rec |>
+    step_log(depth,  base = 10)
+}
+if ("Xbtm" %in% cfg$keep_vars){
+  rec = rec |>
+    step_log(Xbtm,  base = 10)
+}
+rec
+```
+
+Next we state that we want to **remove** variables that might be highly correlated with other variables. If two variables are highly correlated, they will not provide the modeling system with more information, just redundant information which doesn't neccessarily help. `step_corr()` accepts a variety of arguments specifying which variables to test to correlation including some convenience selectors like `all_numeric()`, `all_string()` and friends.  We want all predictors which happen to all be numeric, so we can use `all_predictors()` or `all_numeric_predictors()`. Specificity is better then generality so let's choose numeric predictors.
+
+:::{.callout-note}
+We have already tested variables for high collinearlity, but here we can add a slightly different filter, high correlation, for the same issue.  Since we have dealt with this already we shouldn't expect that step will change the preprocessing very much.  But it is instructive to see it in action. 
+:::
+
+```{r step_corr}
+rec = rec |> 
+  step_corr(all_numeric_predictors())
+rec
+```
+
+## Add the recipe to the workflow
+
+```{r add_recipe}
+wflow = wflow |>
+  add_recipe(rec)
+wflow
+```
+
+# Build a model
+
+We are going to build a [random forest "rf"](https://www.geeksforgeeks.org/random-forest-algorithm-in-machine-learning/) model in classification mode which means for us that we have predictions of "presence" or "background". That's just two classes, random forests can predict multiple classes, too. Also, random forests can make regression models which are used for continuous data.  Below we start the model, declare its mode and assign an engine (the package we prefer to use.)  We'll be using the [ranger R pakage](http://imbs-hl.github.io/ranger/).
+
+## Create the model
+
+We create a random forest model, declare that it should be run in classification mode (not regression mode), and then specify that we want to use the `ranger` modeling engine (as opposed to, say, the `randForest` engine).  We additionally specify that it should be able to produce probablilites of a class not just the class label.  We also request that it saves bits of info so that we can compare the relative importance of the covariates.
+
+```{r start_rf}
+model = rand_forest() |>
+  set_mode("classification") |>
+  set_engine("ranger", probability = TRUE, importance = "permutation") 
+model
+```
+Well, that feels underwhelming. We can pass arguments unique to the engine using the `set_args()` function, but, for now we'll accept the defaults.
+
+## Add the model to the workflow
+
+Now we simply add the model to the workflow.
+
+```{r add_model}
+wflow = wflow |>
+  add_model(model)
+wflow
+```
+
+# Fit the model
+
+```{r fit_rf}
+fitted_wflow = fit(wflow, data = tr_data)
+fitted_wflow
+```
+# Making predictions
+
+Predicting is easy with this pattern: `predictions = predict(model, newdata, ...)`  We want to specify that we want probabilites of a particular class being predicted.  In each case we bind to the prediction our original classification, `class`.
+
+## Predict with the training data
+
+First we shall predict with the same data we trained with. The results of this will not really tell us much about our model as it is very circular to predict using the very data used to build the model.  So this next section is more about a first pass at using the tools at your disposal.
+
+```{r predict_train}
+train_pred = predict_table(fitted_wflow, tr_data, type = "prob")
+train_pred
+```
+
+Here the variables prepended with a dot `.` are computed, while the `class` variable is our original. There are many metrics we can use to determine how well this model predicts.  Let's start with the simplest thing... we can make a simply tally of `.pred` and `class`.
+
+```{r count_outcomes}
+count(train_pred, .pred, class)
+```
+There false positives and false negatives, but many are correct. Of course, this is predicting with the very data we used to train the model; knowing that this is predicicting on training data with some many misses might not inspire confidence.  But let's explore more.
+
+## Assess the model
+
+Hewre we walk through a number of common assessment tools.  We want to assess a model to ascertain how closely it models reality (or not!) Using the tools is always easy, interpreting the metrics is not always easy.
+
+### Confusion matrix
+
+The confusion matrix is the next step beyond a simple tally that we made above.
+
+```{r conf_mat_train}
+train_confmat = conf_mat(train_pred, class, .pred)
+train_confmat
+```
+You'll see this is the same as the simple tally we made, but it comes with handy plotting functionality (shown below).  Note that a perfect model would have the upper left and lower right quadrants fully accounting for all points.  The lower left quadrant shows us the number of false-negatives while the upper right quadrant shows the number of false-positives. 
+
+```{r plot_confmat_train}
+autoplot(train_confmat, type = "heatmap")
+```
+
+### ROC and AUC
+
+The area under the curve ([AUC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic#Area_under_the_curve)) of the receiver-operator curve ([ROC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic)) is a common metric.  AUC values range form 0-1 with 1 reflecting a model that faithfully predicts correctly. Technically an AUC value of 0.5 represents a random model (yup, the result of a coin flip!), so values greater than 0.5 and less than 1.0 are expected.
+
+First we can plot the ROC.
+
+```{r plot_roc}
+plot_roc(train_pred, class, .pred_presence)
+```
+
+We can assure you from practical experience that this is an atypical ROC.  Typically they are not smooth, but this smoothness is an artifact of our use of training data. If you really only need the AUC, you can use the `roc_auc()` function directly.
+
+```{r roc_auc}
+roc_auc(train_pred, class,  .pred_presence)
+```
+### Accuracy
+
+Accuracy, much like our simple tally above, tells us what fraction of the predictions are correct.  Not that here we explicitly provide the predicted class label (not the probability.)
+
+```{r accuracy}
+accuracy(train_pred, class, .pred)
+```
+
+### Partial dependence plot
+
+Partial dependence reflects the relative contrubution of each variable influence over it's full range of values.  The output is a grid grid of plots showing the relative distribution of the variable (bars) as well as the relative influenceof the variable (line). 
+```{r pd_plot}
+partial_dependence_plot(fitted_wflow, data = tr_data)
+```
+
+
+## Predict with the testing data
+
+Finally, we can repeat these steps with the testing data.  This should give use better information than using the training data
+
+### Predict
+
+```{r predict_test}
+test_data = testing(split_data)
+test_pred = predict_table(fitted_wflow, test_data, type = "prob")
+test_pred
+```
+
+### Confusion matrix
+
+```{r conf_mat_test}
+test_confmat = conf_mat(test_pred, class, .pred)
+autoplot(test_confmat, type = "heatmap")
+```
+
+### ROC/AUC
+```{r plot_roc_test}
+plot_roc(test_pred, class, .pred_presence)
+```
+
+This ROC is more typical of what we see in regular practice. 
+
+### Accuracy
+
+```{r accuracy_test}
+accuracy(test_pred, class, .pred)
+```
+
+### Partial Dependence
+```{r pd_plot_test}
+partial_dependence_plot(fitted_wflow, data = test_data)
+```
+
+# Saving recipes and models to disk as a workflow
+
+We can (and should!) save recipes and models to disk for later recall.  We need the recipe because it handle the pre-processing of our covariates, while the model specifies both the form of the model as well as the necessary coefficients. When bundled together for later use we can be assured the the data pre-processing steps and model specifications will be available.  A [workflow](https://workflows.tidymodels.org/) is a container for recipes, models and other parts of the model process.  
+
+Now we can save the workflow container.
+
+```{r save_model}
+write_workflow(fitted_wflow, version = cfg$version)
+```
+
+You can read it back later with `read_workflow()`.
+
+# Recap
+
+We have built a random forest model using tools from the [tidymodels universe](https://www.tidymodels.org/).  After reading in a suite of data, we split our data into training and testing sets, witholding the testing set until the very end.  We looked a variety of metrics including a simple tally, a confusion matrix, ROC and AUC, accuracy and partial dependencies.  We saved the recipe and model together in a special container, called a workflow, to a file.
+
+# Coding Assignment
+
+Use the [iterations tutorial](https://bigelowlab.github.io/handytandy/iterations.html) to build a workflow for each month using one or both of your background selection methods.  Save each workflow in the `models` directory.  If you chose to do both background selection methods then you should end up with 24 workflows (12 months x 2 background sampling methods).
+

@@ -66,7 +66,7 @@ Whatever selection of variables we decide to model with, we will save this listi
 Before we do commit to a selection of variables, let's turn our attention back to our presence-background points, and look at just those chosen values rather than at values drawn form across the entire domain. Let's open the file that contains the "greedy" model input for August during the PRESENT climate scenario.
 
 ```{r present_august_model_input}
-model_input = read_model_input(scientificname = "Mola mola", 
+model_input = read_model_input(scientificname = "Pandalus borealis", 
                                approach = "greedy", 
                                mon = "Aug")
 model_input
@@ -107,7 +107,7 @@ Let's make a confuguration list that holds 4 items: version identifier, species 
 ```{r make_config}
 cfg = list(
   version = "g_Aug",               # g for greedy!
-  scientificname = "Mola mola",
+  scientificname = "Pandalus borealis",
   approach = "greedy",
   mon = "Aug",
   keep_vars =  keep)
@@ -139,7 +139,7 @@ We loaded the covariates for the "PRESENT" climate scenario and looked at collin
 Open and edit the file called `functions/select_covariates.R`.  Within the file write the function(s) you need to select the "keeper" variables for a given approach (greedy or conservative) and a given month (Jan - Dec).  Have the function return an appropriate configuration list. The function shoulkd start out approximately like this...
 
 ```
-#' Given a species, month and sampling approach select variabkes for each month
+#' Given a species, month and sampling approach select variables for each month
 #'
 #' @param approach chr one of "greedy" (default) or "conservative"
 #' @param mon chr month abbreviation ("Jan" default)
@@ -162,3 +162,14 @@ select_covariates = function(approach = "greedy",
 ```
 
 Use the [iterations tutorial](https://bigelowlab.github.io/handytandy/iterations.html) to apply your `select_covariates()` for each month using each approach.  At each iteration write the configuration.  When you are done, you should have 12 YAML files for each approach - so 24 YAML files written all together for each species.
+
+```{r}
+for (month in month.abb){
+  greedy = select_covariates(approach = "greedy", mon = month, scientificname = "Pandalus borealis", must_have_depth = TRUE)
+  
+  conservative = select_covariates(approach = "conservative", mon = month, scientificname = "Pandalus borealis", must_have_depth = TRUE)
+  
+}
+```
+
+
