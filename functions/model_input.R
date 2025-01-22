@@ -14,11 +14,9 @@ read_model_input = function(scientificname = "Mola mola",
   # your part goes in here
   filename = sprintf("%s-%s-%s_input.gpkg", 
                      gsub(" ", "_", scientificname),
-                     mon)
+                     mon, approach)
   
-  files = list.files(path, full.names = TRUE)
-  
-  x = read_sf(files[1])
-  
-  return(x[filename])
+  x = read_sf(file.path(path, filename))
+    
+  return(x)
 }

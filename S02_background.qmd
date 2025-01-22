@@ -298,4 +298,7 @@ read_model_input = function(scientificname = "Mola mola",
 read_model_input(scientificname = "Pandalus borealis",
                  mon = "Nov",
                  approach = "conservative")
+read_model_input(scientificname = "Pandalus borealis",
+                 mon = "Nov",
+                 approach = "greedy")
 ```
