@@ -351,3 +351,134 @@ We have built a random forest model using tools from the [tidymodels universe](h
 
 Use the [iterations tutorial](https://bigelowlab.github.io/handytandy/iterations.html) to build a workflow for each month using one or both of your background selection methods.  Save each workflow in the `models` directory.  If you chose to do both background selection methods then you should end up with 24 workflows (12 months x 2 background sampling methods).
 
+
+```{r greedy approach}
+#for the greedy selection method
+for(month in month.abb){
+  
+  #first, we need to create the model input, the training data and test data
+  model_input = read_model_input(scientificname = "Pandalus borealis", 
+                               approach = "greedy", 
+                               mon = month)
+  if(!is.null(model_input)){
+    cfg = read_configuration(version = paste("g_", month, sep = ""))
+    db = brickman_database()
+    covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon"))|>
+      select(all_of(cfg$keep_vars))
+    
+    all_data = prep_model_data(model_input, 
+                               month = month,
+                               covars = covars, 
+                               form = "table") |>
+      select(all_of(c("class", cfg$keep_vars)))
+    
+    split_data = initial_split(all_data, 
+                             prop = 3/4,
+                             strata = class)
+    
+    # next, we will start creating the workflow
+    wflow = workflow()
+    
+    tr_data = training(split_data)
+    
+    rec = recipe(class ~ ., data = slice(tr_data,1))
+    
+    rec = rec |> 
+      step_naomit()
+    if ("depth" %in% cfg$keep_vars){
+      rec = rec |>
+        step_log(depth,  base = 10)
+    }
+    if ("Xbtm" %in% cfg$keep_vars){
+      rec = rec |>
+        step_log(Xbtm,  base = 10)
+    }
+    
+    rec = rec |> 
+      step_corr(all_numeric_predictors())
+    
+    wflow = wflow |>
+      add_recipe(rec)
+    
+    # next, we need to make the model for the month
+    model = rand_forest() |>
+    set_mode("classification") |>
+    set_engine("ranger", probability = TRUE, importance = "permutation")
+    
+    wflow = wflow |>
+      add_model(model)
+    
+    fitted_wflow = fit(wflow, data = tr_data)
+    
+    # lastly, we need to save the workflow
+    write_workflow(fitted_wflow, version = cfg$version)
+  }
+}
+```
+
+
+```{r conservative approach}
+#for the conservative selection method
+for(month in month.abb){
+  
+  #first, we need to create the model input, the training data and test data
+  model_input = read_model_input(scientificname = "Pandalus borealis", 
+                               approach = "conservative", 
+                               mon = month)
+  if(!is.null(model_input)){
+    cfg = read_configuration(version = paste("c_", month, sep = ""))
+    db = brickman_database()
+    covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon"))|>
+      select(all_of(cfg$keep_vars))
+    
+    all_data = prep_model_data(model_input, 
+                               month = month,
+                               covars = covars, 
+                               form = "table") |>
+      select(all_of(c("class", cfg$keep_vars)))
+    
+    split_data = initial_split(all_data, 
+                             prop = 3/4,
+                             strata = class)
+    
+    # next, we will start creating the workflow
+    wflow = workflow()
+    
+    tr_data = training(split_data)
+    
+    rec = recipe(class ~ ., data = slice(tr_data,1))
+    
+    rec = rec |> 
+      step_naomit()
+    if ("depth" %in% cfg$keep_vars){
+      rec = rec |>
+        step_log(depth,  base = 10)
+    }
+    if ("Xbtm" %in% cfg$keep_vars){
+      rec = rec |>
+        step_log(Xbtm,  base = 10)
+    }
+    
+    rec = rec |> 
+      step_corr(all_numeric_predictors())
+    
+    wflow = wflow |>
+      add_recipe(rec)
+    
+    # next, we need to make the model for the month
+    model = rand_forest() |>
+    set_mode("classification") |>
+    set_engine("ranger", probability = TRUE, importance = "permutation")
+    
+    wflow = wflow |>
+      add_model(model)
+    
+    fitted_wflow = fit(wflow, data = tr_data)
+    
+    # lastly, we need to save the workflow
+    write_workflow(fitted_wflow, version = cfg$version)
+  }
+}
+```
+
+
