@@ -279,20 +279,20 @@ Create a function to read the correct model input when given the species, month 
 Use the menu option `File > New File > R Script` to create a blank file. Save the file (even though it is empty) in the "functions" directory as "model_input.R".  Use this file to build a function (or set of functions) that uses this set of arguments.  Below is a template to help you get started.
 
 
-```{r read_model_input}
-#' Reads a model input file given species, month, approach and path
-#' 
-#' @param scientificname chr, the species name
-#' @param mon chr month abbreviation
-#' @param approach chr, one of "greedy" or "conservative"
-#' @param path chr the path to the data directory
-read_model_input = function(scientificname = "Mola mola",
-                            mon = "Jan",
-                            approach = "greedy",
-                            path = data_path("model_input")){
-    # your part goes in here
-}
-```
+# ```{r read_model_input}
+# #' Reads a model input file given species, month, approach and path
+# #' 
+# #' @param scientificname chr, the species name
+# #' @param mon chr month abbreviation
+# #' @param approach chr, one of "greedy" or "conservative"
+# #' @param path chr the path to the data directory
+# read_model_input = function(scientificname = "Mola mola",
+#                             mon = "Jan",
+#                             approach = "greedy",
+#                             path = data_path("model_input")){
+#     # your part goes in here
+# }
+# ```
 
 ```{r}
 read_model_input(scientificname = "Pandalus borealis",

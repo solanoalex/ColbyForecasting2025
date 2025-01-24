@@ -51,19 +51,19 @@ write_prediction = function(x, filename = "prediction.tif",
 }
 
 
-read_prediction = function(x, filename = "prediction.tif",
-                            attr = ".pred_presence"){
-  #' Read a prediction (or a time series of predictions)
-  #' 
-  #' @param filename chr, the name of the file to write
-  #' @param attr chr or num, either the positional index or attribute name to write.
-  #' @return the input object x (suitable for piping)
-  
-  stopifnot(inherits(x, "stars"))
-  
-  stars::write_stars(x[attr], filename)
-  
-}
+#' read_prediction = function(x, filename = "prediction.tif",
+#'                             attr = ".pred_presence"){
+#'   #' Read a prediction (or a time series of predictions)
+#'   #' 
+#'   #' @param filename chr, the name of the file to write
+#'   #' @param attr chr or num, either the positional index or attribute name to write.
+#'   #' @return the input object x (suitable for piping)
+#'   
+#'   stopifnot(inherits(x, "stars"))
+#'   
+#'   stars::write_stars(x[attr], filename)
+#'   
+#' }
 
 read_prediction = function(filename, attr = '.pred_presence', time = NULL){
   #' Read a prediction (or a time series of predictions)
