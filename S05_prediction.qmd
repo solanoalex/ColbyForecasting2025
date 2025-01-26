@@ -164,40 +164,53 @@ We made both a nowcast and a number predictions using a previously saved workflo
 For each each climate scenario create a monthly forecast (so that's three: nowcast, forecast_2055 and forecast_2075) and save each to in your `predictions` directory.  Whether you choose to draw upon the greedy background sampling method, the conservative background sampling method or both is up to you. Keep in mind that some months may not have enough data to model without throwing an error.  We suggest that you wrap your critical steps in a `try()` function which will catch the error without crashing your iterator. There is a tutorial on [error catching](https://bigelowlab.github.io/handytandy/try.html) that specifically uses `try()`.
 
 
-```{r rcp45}
-cfg = read_configuration(version = "g_Aug")
-db = brickman_database()
-covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon")) |>
-  select(all_of(cfg$keep_vars)) |>
-  slice("month", "Aug") 
+```{r rcp45 greedy approach}
+for(month in month.abb){
+  
+  cfg = try(read_configuration(version = paste("g_", month, sep = "")))
+  
+  if(inherits(cfg, "try-error")){
+    message("configuration not found: ", paste("g_", month, sep = ""))
+  }
+  else{
+    db = brickman_database()
+    covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon")) |>
+      select(all_of(cfg$keep_vars)) |>
+      slice("month", month) 
+    
+    wflow = read_workflow(version = cfg$version)
+    
+    nowcast = predict_stars(wflow, covars)
+    
+    covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP45", year == 2075, interval == "mon")) |>
+      select(all_of(cfg$keep_vars)) |>
+      slice("month", month) 
+    
+    forecast_2075 = predict_stars(wflow, covars_rcp45_2075)
+    
+    covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP45", year == 2055, interval == "mon")) |>
+      select(all_of(cfg$keep_vars)) |>
+      slice("month", month) 
+    forecast_2055 = predict_stars(wflow, covars_rcp45_2055)
+    
+    rcp45 = c(nowcast, forecast_2055, forecast_2075, along = list(year = c("2020", "2055", "2075")))
+    
+    # make sure the output directory exists
+    path = data_path("predictions")
+    if (!dir.exists(path)) ok = dir.create(path, recursive = TRUE)
+    
+    write_prediction(nowcast, file = file.path(path, paste("g_", month, "RCP45_2020.tif", sep = "")))
+    write_prediction(forecast_2055, file = file.path(path, paste("g_", month, "_RCP45_2055.tif", sep = "")))
+    write_prediction(forecast_2075, file = file.path(path, paste("g_", month, "_RCP45_2075.tif", sep = "")))
+    
+  }
+}
 
-wflow = read_workflow(version = cfg$version)
-
-nowcast = predict_stars(wflow, covars)
-
-covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP45", year == 2075, interval == "mon")) |>
-  select(all_of(cfg$keep_vars)) |>
-  slice("month", "Aug") 
-
-forecast_2075 = predict_stars(wflow, covars_rcp45_2075)
-
-covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP45", year == 2055, interval == "mon")) |>
-  select(all_of(cfg$keep_vars)) |>
-  slice("month", "Aug") 
-forecast_2055 = predict_stars(wflow, covars_rcp45_2055)
-
-rcp45 = c(nowcast, forecast_2055, forecast_2075, along = list(year = c("2020", "2055", "2075")))
-
-# make sure the output directory exists
-path = data_path("predictions")
-if (!dir.exists(path)) ok = dir.create(path, recursive = TRUE)
-
-# write_prediction(nowcast, file = file.path(path,"g_Aug_RCP45_2020.tif")) # the nowcast is the same
-write_prediction(forecast_2055, file = file.path(path, "g_Aug_RCP45_2055.tif"))
-write_prediction(forecast_2075, file = file.path(path, "g_Aug_RCP45_2075.tif"))
 ```
 
 ```{r rcp45 side by side comparisons} 
+coast = read_coastline()
+
 plot_coast = function(){
   plot(coast, col = "orange", lwd = 2, add = TRUE)
 }
@@ -212,5 +225,5 @@ coast = read_coastline()
 plot(nowcast['.pred_presence'], main = "Nowcast August", 
      axes = TRUE, breaks = seq(0, 1, by = 0.1), reset = FALSE)
 plot(coast, col = "orange", lwd = 2, add = TRUE)
-plot(st_geometry(shrimp), pch = ".", col="blue",add = TRUE)
+plot(st_geometry(read_observations(individual_na = F)), pch = ".", col="blue",add = TRUE)
 ```

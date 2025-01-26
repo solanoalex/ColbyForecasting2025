@@ -242,6 +242,27 @@ summary(shrimp_na)
 summary(shrimp)
 ```
 
+```{r}
+shrimp_na |>
+  filter(is.na(individualCount)) |>
+  slice(1751) |>
+  browse_obis()
+```
+
+```{r}
+ggplot(data = shrimp_na,
+       mapping = aes(x = year)) + 
+  geom_bar() + 
+  labs(title = "Counts per Year")
+
+ggplot(data = shrimp,
+     mapping = aes(x = year)) + 
+  geom_bar() + 
+  labs(title = "Counts per year")
+
+```
+
+
 
 ```{r}
 ggplot(data = shrimp_na,
