@@ -182,13 +182,13 @@ for(month in month.abb){
     
     nowcast = predict_stars(wflow, covars)
     
-    covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP85", year == 2075, interval == "mon")) |>
+    covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP45", year == 2075, interval == "mon")) |>
       select(all_of(cfg$keep_vars)) |>
       slice("month", month) 
     
     forecast_2075 = predict_stars(wflow, covars_rcp45_2075)
     
-    covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP85", year == 2055, interval == "mon")) |>
+    covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP45", year == 2055, interval == "mon")) |>
       select(all_of(cfg$keep_vars)) |>
       slice("month", month) 
     forecast_2055 = predict_stars(wflow, covars_rcp45_2055)
@@ -199,9 +199,17 @@ for(month in month.abb){
     path = data_path("predictions")
     if (!dir.exists(path)) ok = dir.create(path, recursive = TRUE)
     
-    write_prediction(nowcast, file = file.path(path, paste("g_", month, "RCP85_2020.tif", sep = "")))
-    write_prediction(forecast_2055, file = file.path(path, paste("g_", month, "_RCP85_2055.tif", sep = "")))
-    write_prediction(forecast_2075, file = file.path(path, paste("g_", month, "_RCP85_2075.tif", sep = "")))
+    write_prediction(nowcast, file = file.path(path, paste("g_", month, "_RCP45_2020.tif", sep = "")))
+    write_prediction(forecast_2055, file = file.path(path, paste("g_", month, "_RCP45_2055.tif", sep = "")))
+    write_prediction(forecast_2075, file = file.path(path, paste("g_", month, "_RCP45_2075.tif", sep = "")))
+    
+    plot_coast = function(){
+      plot(coast, col = "orange", lwd = 2, add = TRUE)
+      }
+  
+    plot(rcp45['.pred_presence'], 
+       hook = plot_coast,
+       axes = TRUE, breaks = seq(0, 1, by = 0.1), join_zlim  = TRUE, reset = FALSE, main = paste("RCP45 for ", month, sep=""))
     
   }
 }
@@ -265,14 +273,19 @@ for(month in month.abb){
     path = data_path("predictions")
     if (!dir.exists(path)) ok = dir.create(path, recursive = TRUE)
     
-    write_prediction(nowcast, file = file.path(path, paste("c_", month, "RCP85_2020.tif", sep = "")))
+    write_prediction(nowcast, file = file.path(path, paste("c_", month, "_RCP85_2020.tif", sep = "")))
     write_prediction(forecast_2055, file = file.path(path, paste("c_", month, "_RCP85_2055.tif", sep = "")))
     write_prediction(forecast_2075, file = file.path(path, paste("c_", month, "_RCP85_2075.tif", sep = "")))
-    
+    plot_coast = function(){
+    plot(coast, col = "orange", lwd = 2, add = TRUE)
+    }
+  
+    plot(rcp45['.pred_presence'], 
+       hook = plot_coast,
+       axes = TRUE, breaks = seq(0, 1, by = 0.1), join_zlim  = TRUE, reset = FALSE, main = paste("RCP85 for ", month, sep=""))
   }
 }
 
 ```
-
 
 

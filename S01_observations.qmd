@@ -306,5 +306,14 @@ ggplot(data = shrimp) +       # create a plot object
 
 ```
 
+```{r}
+coast = read_coastline()
+ggplot(data = shrimp_na) +                  # create the plot
+  geom_sf(alpha = 0.1, size = 0.7) +   # add the points
+  geom_sf(data = coast,                # add the coast
+          col = "orange") +
+  facet_wrap(~factor(month, month.abb))# make a montage by month
+
+```
 
 
