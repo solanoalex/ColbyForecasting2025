@@ -268,7 +268,7 @@ ggplot(data = shrimp,
 ggplot(data = shrimp_na,
        mapping = aes(x = factor(month, month.abb))) + 
   geom_bar() + 
-  labs(title = "Counts per month")
+  labs(x = "month", title = "Counts per Month")
 
 ggplot(data = shrimp,
      mapping = aes(x = factor(month, month.abb))) + 

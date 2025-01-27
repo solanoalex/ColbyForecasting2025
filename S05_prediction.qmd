@@ -182,13 +182,13 @@ for(month in month.abb){
     
     nowcast = predict_stars(wflow, covars)
     
-    covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP45", year == 2075, interval == "mon")) |>
+    covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP85", year == 2075, interval == "mon")) |>
       select(all_of(cfg$keep_vars)) |>
       slice("month", month) 
     
     forecast_2075 = predict_stars(wflow, covars_rcp45_2075)
     
-    covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP45", year == 2055, interval == "mon")) |>
+    covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP85", year == 2055, interval == "mon")) |>
       select(all_of(cfg$keep_vars)) |>
       slice("month", month) 
     forecast_2055 = predict_stars(wflow, covars_rcp45_2055)
@@ -199,9 +199,9 @@ for(month in month.abb){
     path = data_path("predictions")
     if (!dir.exists(path)) ok = dir.create(path, recursive = TRUE)
     
-    write_prediction(nowcast, file = file.path(path, paste("g_", month, "RCP45_2020.tif", sep = "")))
-    write_prediction(forecast_2055, file = file.path(path, paste("g_", month, "_RCP45_2055.tif", sep = "")))
-    write_prediction(forecast_2075, file = file.path(path, paste("g_", month, "_RCP45_2075.tif", sep = "")))
+    write_prediction(nowcast, file = file.path(path, paste("g_", month, "RCP85_2020.tif", sep = "")))
+    write_prediction(forecast_2055, file = file.path(path, paste("g_", month, "_RCP85_2055.tif", sep = "")))
+    write_prediction(forecast_2075, file = file.path(path, paste("g_", month, "_RCP85_2075.tif", sep = "")))
     
   }
 }
@@ -227,3 +227,52 @@ plot(nowcast['.pred_presence'], main = "Nowcast August",
 plot(coast, col = "orange", lwd = 2, add = TRUE)
 plot(st_geometry(read_observations(individual_na = F)), pch = ".", col="blue",add = TRUE)
 ```
+
+
+
+```{r rcp45 conservative approach}
+for(month in month.abb){
+  
+  cfg = try(read_configuration(version = paste("c_", month, sep = "")))
+  
+  if(inherits(cfg, "try-error")){
+    message("configuration not found: ", paste("c_", month, sep = ""))
+  }
+  else{
+    db = brickman_database()
+    covars = read_brickman(db |> filter(scenario == "PRESENT", interval == "mon")) |>
+      select(all_of(cfg$keep_vars)) |>
+      slice("month", month) 
+    
+    wflow = read_workflow(version = cfg$version)
+    
+    nowcast = predict_stars(wflow, covars)
+    
+    covars_rcp45_2075 = read_brickman(db |> filter(scenario == "RCP85", year == 2075, interval == "mon")) |>
+      select(all_of(cfg$keep_vars)) |>
+      slice("month", month) 
+    
+    forecast_2075 = predict_stars(wflow, covars_rcp45_2075)
+    
+    covars_rcp45_2055 = read_brickman(db |> filter(scenario == "RCP85", year == 2055, interval == "mon")) |>
+      select(all_of(cfg$keep_vars)) |>
+      slice("month", month) 
+    forecast_2055 = predict_stars(wflow, covars_rcp45_2055)
+    
+    rcp45 = c(nowcast, forecast_2055, forecast_2075, along = list(year = c("2020", "2055", "2075")))
+    
+    # make sure the output directory exists
+    path = data_path("predictions")
+    if (!dir.exists(path)) ok = dir.create(path, recursive = TRUE)
+    
+    write_prediction(nowcast, file = file.path(path, paste("c_", month, "RCP85_2020.tif", sep = "")))
+    write_prediction(forecast_2055, file = file.path(path, paste("c_", month, "_RCP85_2055.tif", sep = "")))
+    write_prediction(forecast_2075, file = file.path(path, paste("c_", month, "_RCP85_2075.tif", sep = "")))
+    
+  }
+}
+
+```
+
+
+
