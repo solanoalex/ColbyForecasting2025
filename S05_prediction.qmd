@@ -209,7 +209,7 @@ for(month in month.abb){
   
     plot(rcp45['.pred_presence'], 
        hook = plot_coast,
-       axes = TRUE, breaks = seq(0, 1, by = 0.1), join_zlim  = TRUE, reset = FALSE, main = paste("RCP45 for ", month, sep=""))
+       axes = TRUE, breaks = seq(0, 1, by = 0.1), join_zlim  = TRUE, reset = FALSE, main = paste("RCP45 for ", month, sep=""))3
     
   }
 }

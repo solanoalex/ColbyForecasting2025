@@ -238,6 +238,8 @@ obs = read_observations()
 shrimp_na = read_observations(individual_na = F)
 shrimp = read_observations()
 
+shrimp |> count(basisOfRecord)
+
 summary(shrimp_na)
 summary(shrimp)
 ```
@@ -245,7 +247,7 @@ summary(shrimp)
 ```{r}
 shrimp_na |>
   filter(is.na(individualCount)) |>
-  slice(1751) |>
+  slice(1) |>
   browse_obis()
 ```
 
